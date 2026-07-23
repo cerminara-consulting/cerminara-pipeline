@@ -1,11 +1,11 @@
 ---
-// Main dashboard. Renders both:
-//   - Mobile: a scrollable card list (default)
-//   - Desktop (>= 720px): kanban board with drag-and-drop
+// Cerminara Pipeline Tracker — main dashboard.
+// Classic Mac (System 7) aesthetic. Single-page, client-rendered,
+// mobile shows card list, desktop shows kanban with drag-and-drop.
 //
-// All data fetching + interactions happen client-side via Supabase.
-// Auth is gated in JS: signed-out users see the auth UI inline,
-// signed-in users see the dashboard. Single URL = easy to bookmark.
+// The page itself is one "window" (the application). Sections inside
+// it are smaller windows with their own title bars, in the classic
+// "multiple windows on the desktop" idiom.
 import '../styles/global.css';
 ---
 
@@ -14,101 +14,208 @@ import '../styles/global.css';
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="robots" content="noindex,nofollow" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <title>Pipeline — Tracker</title>
 </head>
 <body>
   <!-- Auth view (shown when signed out) -->
-  <div id="auth-view" class="auth-page" style="display:none">
-    <div class="auth-card">
-      <h1>Tracker</h1>
-      <div class="sub">Cerminara Consulting pipeline</div>
+  <div id="auth-view" style="display:none">
+    <!-- Menu bar always shown, even when signed out, so the chrome is consistent -->
+    <div id="menubar" role="menubar" aria-label="Application menu">
+      <div class="mb-appname">Tracker</div>
+      <button class="mb-item right" type="button">No user</button>
+    </div>
+    <div class="app-body">
+      <div class="auth-shell">
+        <div class="window auth-window">
+          <div class="titlebar">
+            <div class="titlebar-text">Sign in to Tracker</div>
+          </div>
+          <div class="window-body">
+            <div class="sub">Solo-operator CRM · Cerminara Consulting</div>
 
-      <div class="tabs" id="auth-tabs">
-        <button type="button" data-tab="password" class="active">Password</button>
-        <button type="button" data-tab="magic">Magic link</button>
+            <div class="tabs" id="auth-tabs">
+              <button type="button" data-tab="password" class="active">Password</button>
+              <button type="button" data-tab="magic">Magic link</button>
+            </div>
+
+            <form id="auth-form">
+              <label for="email">Email</label>
+              <input id="email" type="email" autocomplete="email" required />
+
+              <div id="password-field">
+                <label for="password">Password (12+ characters)</label>
+                <input id="password" type="password" autocomplete="current-password" minlength="12" required />
+              </div>
+
+              <button type="submit" class="primary submit" id="auth-submit">Sign in</button>
+              <div id="auth-msg" class="auth-msg" style="display:none"></div>
+            </form>
+          </div>
+        </div>
       </div>
-
-      <form id="auth-form">
-        <div>
-          <label for="email">Email</label>
-          <input id="email" type="email" autocomplete="email" required />
-        </div>
-
-        <div id="password-field">
-          <label for="password">Password (12+ chars)</label>
-          <input id="password" type="password" autocomplete="current-password" minlength="12" required />
-        </div>
-
-        <button type="submit" class="primary submit" id="auth-submit">Sign in</button>
-        <div id="auth-msg"></div>
-      </form>
     </div>
   </div>
 
   <!-- Dashboard view (shown when signed in) -->
-  <div id="dash-view" class="app" style="display:none">
-    <header class="topbar">
-      <div class="brand">Tracker <span class="dot">·</span> <span style="color:var(--ink-muted);font-weight:400">Cerminara Consulting</span></div>
-      <nav>
-        <a href="/" class="active">Pipeline</a>
-      </nav>
-      <div class="user">
-        <span id="user-email"></span>
-        <button class="sign-out" id="sign-out">Sign out</button>
-      </div>
-    </header>
+  <div id="dash-view" style="display:none">
+    <div id="menubar" role="menubar" aria-label="Application menu">
+      <div class="mb-appname">Tracker</div>
+      <button class="mb-item" data-menu="file" type="button">File</button>
+      <button class="mb-item" data-menu="edit" type="button">Edit</button>
+      <button class="mb-item" data-menu="view" type="button">View</button>
+      <button class="mb-item" data-menu="help" type="button">Help</button>
+      <button class="mb-item right" type="button" id="mb-user">—</button>
+      <button class="mb-item" type="button" id="mb-signout">Sign out</button>
 
-    <div class="main">
-      <div class="summary-bar" id="summary">
-        <div class="summary-card">
-          <div class="label">Active</div>
-          <div class="value" id="m-active">—</div>
-        </div>
-        <div class="summary-card">
-          <div class="label">Quoted</div>
-          <div class="value" id="m-quoted">—</div>
-        </div>
-        <div class="summary-card warn">
-          <div class="label">Outstanding</div>
-          <div class="value" id="m-outstanding">—</div>
-        </div>
-        <div class="summary-card good">
-          <div class="label">Paid (all time)</div>
-          <div class="value" id="m-paid">—</div>
-        </div>
-        <div class="summary-card warn">
-          <div class="label">Follow-ups due</div>
-          <div class="value" id="m-followups">—</div>
-        </div>
+      <div class="mb-dropdown" id="dd-file">
+        <button class="mb-di" data-action="new-engagement">New engagement…</button>
+        <button class="mb-di" data-action="export">Export data…</button>
       </div>
-
-      <div class="list-view-only-on-mobile">
-        <div class="list-toolbar">
-          <h2>All engagements</h2>
-          <div class="actions">
-            <button id="new-mobile">+ New</button>
-          </div>
-        </div>
-        <div class="list-view" id="card-list"></div>
+      <div class="mb-dropdown" id="dd-edit">
+        <button class="mb-di" disabled>Undo</button>
+        <button class="mb-di" disabled>Cut</button>
+        <button class="mb-di" disabled>Copy</button>
+        <button class="mb-di" disabled>Paste</button>
+        <button class="mb-di" disabled>Clear</button>
       </div>
-
-      <div class="desktop-only">
-        <div class="list-toolbar" style="margin-bottom:14px">
-          <h2>Pipeline board</h2>
-          <div class="actions">
-            <button id="new-desktop">+ New engagement</button>
-          </div>
-        </div>
-        <div class="kanban" id="kanban"></div>
+      <div class="mb-dropdown" id="dd-view">
+        <button class="mb-di" data-action="view-mobile">Card list (mobile)</button>
+        <button class="mb-di" data-action="view-desktop">Pipeline board</button>
+      </div>
+      <div class="mb-dropdown" id="dd-help">
+        <button class="mb-di" data-action="about">About Tracker…</button>
+        <button class="mb-di" data-action="shortcuts">Keyboard shortcuts…</button>
       </div>
     </div>
 
+    <div class="app-body">
+      <!-- Summary "panels" — small windows with their own title bars -->
+      <div class="window">
+        <div class="titlebar">
+          <div class="titlebar-text">Overview</div>
+        </div>
+        <div class="window-body" style="padding:8px">
+          <div class="summary-bar" id="summary">
+            <div class="summary-card">
+              <div class="label">Active</div>
+              <div class="value" id="m-active">—</div>
+            </div>
+            <div class="summary-card">
+              <div class="label">Quoted</div>
+              <div class="value" id="m-quoted">—</div>
+            </div>
+            <div class="summary-card due">
+              <div class="label">Outstanding</div>
+              <div class="value" id="m-outstanding">—</div>
+            </div>
+            <div class="summary-card">
+              <div class="label">Paid total</div>
+              <div class="value" id="m-paid">—</div>
+            </div>
+            <div class="summary-card due">
+              <div class="label">Follow-ups due</div>
+              <div class="value" id="m-followups">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile: card list window -->
+      <div class="window mobile-only">
+        <div class="titlebar">
+          <div class="titlebar-text">All engagements</div>
+        </div>
+        <div class="window-body" style="padding:8px">
+          <div class="list-toolbar">
+            <h2>Tap a card to edit</h2>
+            <div class="actions">
+              <button id="new-mobile" class="primary">+ New</button>
+            </div>
+          </div>
+          <div class="card-list" id="card-list"></div>
+        </div>
+      </div>
+
+      <!-- Desktop: kanban window -->
+      <div class="window desktop-only">
+        <div class="titlebar">
+          <div class="titlebar-text">Pipeline board</div>
+        </div>
+        <div class="window-body" style="padding:8px">
+          <div class="list-toolbar">
+            <h2>Drag cards between columns</h2>
+            <div class="actions">
+              <button id="new-desktop" class="primary">+ New engagement</button>
+            </div>
+          </div>
+          <div class="kanban" id="kanban"></div>
+        </div>
+      </div>
+
+      <!-- Status bar at the bottom (Mac OS had these) -->
+      <div id="statusbar" style="margin-top:8px;border:var(--border-thick);background:var(--p);padding:5px 10px;font-size:11px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <span><span id="s-counts">0 engagements</span></span>
+        <span><span id="s-lastact">No activity yet</span></span>
+        <span class="desktop-only">⌘N new · Esc close · Drag to move</span>
+      </div>
+    </div>
+
+    <!-- Detail drawer (window) -->
     <div class="drawer-backdrop" id="drawer-backdrop" style="display:none">
-      <div class="drawer" id="drawer"></div>
+      <div class="drawer">
+        <div class="window">
+          <div class="titlebar">
+            <div class="closebox" id="drawer-close" aria-label="Close">×</div>
+            <div class="titlebar-text" id="drawer-title">Engagement</div>
+          </div>
+          <div class="window-body" id="drawer"></div>
+        </div>
+      </div>
     </div>
 
+    <!-- New engagement drawer -->
     <div class="drawer-backdrop" id="new-backdrop" style="display:none">
-      <div class="drawer" id="new-drawer"></div>
+      <div class="drawer">
+        <div class="window">
+          <div class="titlebar">
+            <div class="closebox" id="new-close" aria-label="Close">×</div>
+            <div class="titlebar-text">New engagement</div>
+          </div>
+          <div class="window-body" id="new-drawer"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- About modal (Mac-style alert) -->
+    <div class="drawer-backdrop" id="about-backdrop" style="display:none;align-items:center;justify-content:center">
+      <div class="window" style="width:100%;max-width:380px;margin:0">
+        <div class="titlebar">
+          <div class="titlebar-text">About Tracker</div>
+        </div>
+        <div class="window-body" style="text-align:center">
+          <!-- 1-bit Mac-style logo: stack of horizontal bars -->
+          <svg width="56" height="56" viewBox="0 0 56 56" style="margin:6px auto 10px;display:block">
+            <rect x="6"  y="10" width="44" height="4" fill="#1a1a1a"/>
+            <rect x="6"  y="20" width="44" height="4" fill="#1a1a1a"/>
+            <rect x="6"  y="30" width="44" height="4" fill="#1a1a1a"/>
+            <rect x="6"  y="40" width="44" height="4" fill="#1a1a1a"/>
+            <rect x="6"  y="50" width="14" height="4" fill="#1a1a1a"/>
+            <rect x="26" y="50" width="14" height="4" fill="#1a1a1a"/>
+          </svg>
+          <div style="font-weight:700;margin-bottom:6px">Cerminara Pipeline Tracker</div>
+          <div style="font-size:11px;margin-bottom:10px">Version 0.1.0 · Built 2026-07-23</div>
+          <div style="font-size:12px;line-height:1.5">
+            A solo-operator CRM for consulting engagements.<br/>
+            Astro + Supabase + 1-bit System 7 chrome.
+          </div>
+          <hr/>
+          <div style="font-size:11px">A Cerminara Consulting build.</div>
+          <div style="margin-top:12px;display:flex;justify-content:center;gap:8px">
+            <button id="about-close">OK</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="toast" id="toast" style="display:none"></div>
@@ -130,7 +237,6 @@ import '../styles/global.css';
 
     let engagements = [];
     let clients = [];
-    let authTab = 'password';
 
     const authView = document.getElementById('auth-view');
     const dashView = document.getElementById('dash-view');
@@ -140,7 +246,7 @@ import '../styles/global.css';
       if (session) {
         authView.style.display = 'none';
         dashView.style.display = '';
-        document.getElementById('user-email').textContent = session.user.email;
+        document.getElementById('mb-user').textContent = session.user.email;
         await loadAll();
       } else {
         authView.style.display = '';
@@ -159,10 +265,17 @@ import '../styles/global.css';
     const passwordField = document.getElementById('password-field');
     const authSubmit = document.getElementById('auth-submit');
     const authMsg = document.getElementById('auth-msg');
+    let authTab = 'password';
 
     function setAuthMsg(text, kind) {
-      authMsg.className = 'msg ' + (kind || '');
-      authMsg.textContent = text;
+      authMsg.className = 'auth-msg ' + (kind || '');
+      // For errors, wrap in platinum knockout over dither (classic Mac alert look)
+      if (kind === 'error') {
+        authMsg.innerHTML = '<span>' + escapeHtml(text) + '</span>';
+      } else {
+        authMsg.textContent = text;
+      }
+      authMsg.style.display = '';
     }
 
     authTabs.addEventListener('click', e => {
@@ -179,7 +292,7 @@ import '../styles/global.css';
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
       authSubmit.disabled = true;
-      authSubmit.textContent = 'Working...';
+      authSubmit.textContent = 'Working…';
       try {
         if (authTab === 'magic') {
           const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin } });
@@ -197,8 +310,59 @@ import '../styles/global.css';
       }
     });
 
-    document.getElementById('sign-out').addEventListener('click', async () => {
+    document.getElementById('mb-signout').addEventListener('click', async () => {
       await supabase.auth.signOut();
+    });
+
+    // ─── Menu bar (real, working dropdowns) ──────────────
+    const mbItems = document.querySelectorAll('.mb-item[data-menu]');
+    const dropdowns = {};
+    document.querySelectorAll('.mb-dropdown').forEach(dd => {
+      dropdowns[dd.id.replace('dd-', '')] = dd;
+    });
+    let openMenu = null;
+    function closeAllMenus() {
+      document.querySelectorAll('.mb-dropdown.show').forEach(d => d.classList.remove('show'));
+      document.querySelectorAll('.mb-item.open').forEach(b => b.classList.remove('open'));
+      openMenu = null;
+    }
+    mbItems.forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const name = btn.dataset.menu;
+        const dd = dropdowns[name];
+        if (openMenu === name) { closeAllMenus(); return; }
+        closeAllMenus();
+        dd.classList.add('show');
+        btn.classList.add('open');
+        // Position dropdown under the button
+        const r = btn.getBoundingClientRect();
+        dd.style.left = r.left + 'px';
+        openMenu = name;
+      });
+    });
+    document.addEventListener('click', e => {
+      if (openMenu && !e.target.closest('.mb-dropdown')) closeAllMenus();
+    });
+    // Menu actions
+    document.querySelectorAll('.mb-di[data-action]').forEach(di => {
+      di.addEventListener('click', () => {
+        const action = di.dataset.action;
+        closeAllMenus();
+        if (action === 'new-engagement') openNew();
+        else if (action === 'view-mobile') { window.scrollTo(0,0); }
+        else if (action === 'view-desktop') { window.scrollTo(0,0); }
+        else if (action === 'about') document.getElementById('about-backdrop').style.display = 'flex';
+        else if (action === 'shortcuts') {
+          document.getElementById('about-backdrop').style.display = 'flex';
+        }
+      });
+    });
+    document.getElementById('about-close').addEventListener('click', () => {
+      document.getElementById('about-backdrop').style.display = 'none';
+    });
+    document.getElementById('about-backdrop').addEventListener('click', e => {
+      if (e.target.id === 'about-backdrop') document.getElementById('about-backdrop').style.display = 'none';
     });
 
     // ─── Data ────────────────────────────────────────────
@@ -225,13 +389,26 @@ import '../styles/global.css';
       document.getElementById('m-outstanding').textContent= fmtMoney(outstand);
       document.getElementById('m-paid').textContent       = fmtMoney(paid);
       document.getElementById('m-followups').textContent  = dueSoon;
+
+      // status bar
+      const total = engagements.filter(e => e.status !== 'lost').length;
+      document.getElementById('s-counts').textContent = `${total} engagement${total===1?'':'s'}`;
+      const last = engagements.reduce((acc, e) => {
+        if (!e.last_activity_at) return acc;
+        return !acc || new Date(e.last_activity_at) > new Date(acc) ? e.last_activity_at : acc;
+      }, null);
+      document.getElementById('s-lastact').textContent = last ? `Last activity ${fmtRelative(last)}` : 'No activity yet';
     }
 
     function renderCardList() {
       const list = document.getElementById('card-list');
       const visible = engagements.filter(e => e.status !== 'lost');
       if (visible.length === 0) {
-        list.innerHTML = `<div class="empty"><div class="em-title">No engagements yet</div><div>Tap "+ New" to add your first client + engagement.</div></div>`;
+        list.innerHTML = `
+          <div class="empty">
+            <div class="em-title">No engagements yet</div>
+            <div>Tap "+ New" to add your first client + engagement.<br/>Or use File ▸ New engagement…</div>
+          </div>`;
         return;
       }
       list.innerHTML = visible.map(cardHtml).join('');
@@ -247,16 +424,17 @@ import '../styles/global.css';
         const diffH = (fu - now) / 3600000;
         fuText = `Follow-up: ${fmtFollowup(e.next_followup_at)}`;
         if (fu < now) fuClass += ' overdue';
-        else if (diffH < 48) fuClass += ' due';
+        else if (diffH < 48) fuClass += '';
       }
       const amount = (e.status === 'paid' || e.status === 'invoiced' || e.status === 'closed')
         ? fmtMoney(e.paid_amount || e.quoted_amount)
         : (e.quoted_amount ? fmtMoney(e.quoted_amount) : TYPE_LABELS[e.type]);
+      const pillInner = e.status === 'invoiced' ? `<span>${STATUS_LABELS[e.status]}</span>` : STATUS_LABELS[e.status];
       return `
         <div class="card" data-id="${e.id}">
           <div class="row1">
             <div class="client">${escapeHtml(e.client_name)}${e.client_company ? ' · ' + escapeHtml(e.client_company) : ''}</div>
-            <span class="pill s-${e.status}">${STATUS_LABELS[e.status]}</span>
+            <span class="pill s-${e.status}">${pillInner}</span>
           </div>
           <div class="name">${escapeHtml(e.name)}</div>
           <div class="meta">
@@ -316,22 +494,25 @@ import '../styles/global.css';
       toast('Moved to ' + STATUS_LABELS[newStatus]);
     }
 
+    // ─── Detail drawer ───────────────────────────────────
     function openDrawer(id) {
       const e = engagements.find(x => x.id === id);
       if (!e) return;
       const drawer = document.getElementById('drawer');
+      document.getElementById('drawer-title').textContent = e.name;
       drawer.innerHTML = `
-        <h2>${escapeHtml(e.name)}</h2>
-        <div class="drawer-sub">${escapeHtml(e.client_name)}${e.client_company ? ' · ' + escapeHtml(e.client_company) : ''}</div>
+        <div class="sub">${escapeHtml(e.client_name)}${e.client_company ? ' · ' + escapeHtml(e.client_company) : ''}</div>
 
         <div class="field-row">
-          <div class="field"><label>Status</label>
+          <div>
+            <label>Status</label>
             <select id="d-status">
               ${['lead','quoted','active','invoiced','paid','closed','lost'].map(s =>
                 `<option value="${s}" ${e.status===s?'selected':''}>${STATUS_LABELS[s]}</option>`).join('')}
             </select>
           </div>
-          <div class="field"><label>Type</label>
+          <div>
+            <label>Type</label>
             <select id="d-type">
               ${['fixed','retainer','hourly'].map(t =>
                 `<option value="${t}" ${e.type===t?'selected':''}>${TYPE_LABELS[t]}</option>`).join('')}
@@ -340,20 +521,24 @@ import '../styles/global.css';
         </div>
 
         <div class="field-row">
-          <div class="field"><label>Quoted amount</label>
+          <div>
+            <label>Quoted amount (USD)</label>
             <input id="d-amount" type="number" step="0.01" value="${e.quoted_amount ?? ''}" />
           </div>
-          <div class="field"><label>Hourly rate</label>
+          <div>
+            <label>Hourly rate (USD)</label>
             <input id="d-rate" type="number" step="0.01" value="${e.hourly_rate ?? ''}" />
           </div>
         </div>
 
-        <div class="field"><label>Next follow-up</label>
+        <div>
+          <label>Next follow-up</label>
           <input id="d-followup" type="datetime-local" value="${toLocalDT(e.next_followup_at)}" />
         </div>
 
-        <div class="field"><label>Notes</label>
-          <textarea id="d-notes" rows="4">${escapeHtml(e.notes || '')}</textarea>
+        <div>
+          <label>Notes</label>
+          <textarea id="d-notes" rows="5">${escapeHtml(e.notes || '')}</textarea>
         </div>
 
         <div class="drawer-actions">
@@ -365,6 +550,12 @@ import '../styles/global.css';
         </div>`;
 
       document.getElementById('drawer-backdrop').style.display = '';
+      // Flash the window chrome on open
+      const win = document.querySelector('#drawer-backdrop .window');
+      win.classList.add('inverted-flash');
+      setTimeout(() => win.classList.remove('inverted-flash'), 160);
+
+      document.getElementById('drawer-close').onclick = closeDrawer;
       document.getElementById('d-cancel').onclick = closeDrawer;
       document.getElementById('d-save').onclick = async () => {
         const patch = {
@@ -391,41 +582,58 @@ import '../styles/global.css';
       };
     }
     function closeDrawer() { document.getElementById('drawer-backdrop').style.display = 'none'; }
-    document.getElementById('drawer-backdrop').addEventListener('click', e => { if (e.target.id === 'drawer-backdrop') closeDrawer(); });
+    document.getElementById('drawer-backdrop').addEventListener('click', e => {
+      if (e.target.id === 'drawer-backdrop') closeDrawer();
+    });
 
+    // ─── New engagement ──────────────────────────────────
     function openNew() {
       const drawer = document.getElementById('new-drawer');
       drawer.innerHTML = `
-        <h2>New engagement</h2>
-        <div class="drawer-sub">Add a client and an engagement in one shot.</div>
+        <div class="sub">Add a client and an engagement in one step.</div>
 
-        <div class="field"><label>Client</label>
+        <div>
+          <label>Client</label>
           <select id="n-client">
-            <option value="">— existing or new below —</option>
+            <option value="">— pick existing or new below —</option>
             ${clients.map(c => `<option value="${c.id}">${escapeHtml(c.name)}${c.company ? ' · '+escapeHtml(c.company) : ''}</option>`).join('')}
           </select>
         </div>
 
         <div class="field-row">
-          <div class="field"><label>New client name</label><input id="n-client-name" placeholder="Or pick existing above" /></div>
-          <div class="field"><label>Company</label><input id="n-client-co" /></div>
+          <div>
+            <label>New client name</label>
+            <input id="n-client-name" placeholder="Or pick existing above" />
+          </div>
+          <div>
+            <label>Company</label>
+            <input id="n-client-co" />
+          </div>
         </div>
 
-        <div class="field"><label>Client email</label><input id="n-client-email" type="email" /></div>
+        <div>
+          <label>Client email</label>
+          <input id="n-client-email" type="email" />
+        </div>
 
-        <hr style="border:none;border-top:1px solid var(--border);margin:18px 0" />
+        <hr/>
 
-        <div class="field"><label>Engagement name</label><input id="n-name" placeholder="e.g. iOS app v2 rebuild" /></div>
+        <div>
+          <label>Engagement name</label>
+          <input id="n-name" placeholder="e.g. iOS app v2 rebuild" />
+        </div>
 
         <div class="field-row">
-          <div class="field"><label>Type</label>
+          <div>
+            <label>Type</label>
             <select id="n-type">
               <option value="fixed">Fixed bid</option>
               <option value="retainer">Retainer</option>
               <option value="hourly">Hourly</option>
             </select>
           </div>
-          <div class="field"><label>Status</label>
+          <div>
+            <label>Status</label>
             <select id="n-status">
               <option value="lead">Lead</option>
               <option value="quoted">Quoted</option>
@@ -434,7 +642,10 @@ import '../styles/global.css';
           </div>
         </div>
 
-        <div class="field"><label>Quoted amount</label><input id="n-amount" type="number" step="0.01" placeholder="optional" /></div>
+        <div>
+          <label>Quoted amount (USD)</label>
+          <input id="n-amount" type="number" step="0.01" placeholder="optional" />
+        </div>
 
         <div class="drawer-actions">
           <button id="n-cancel">Cancel</button>
@@ -442,6 +653,11 @@ import '../styles/global.css';
         </div>`;
 
       document.getElementById('new-backdrop').style.display = '';
+      const win = document.querySelector('#new-backdrop .window');
+      win.classList.add('inverted-flash');
+      setTimeout(() => win.classList.remove('inverted-flash'), 160);
+
+      document.getElementById('new-close').onclick = () => { document.getElementById('new-backdrop').style.display = 'none'; };
       document.getElementById('n-cancel').onclick = () => { document.getElementById('new-backdrop').style.display = 'none'; };
       document.getElementById('n-save').onclick = async () => {
         const name = document.getElementById('n-name').value.trim();
@@ -472,13 +688,26 @@ import '../styles/global.css';
         });
         if (ee) { toast('Engagement create failed: ' + ee.message); return; }
         document.getElementById('new-backdrop').style.display = 'none';
-        toast('Created');
+        toast('Engagement created');
         await loadAll();
       };
     }
     document.getElementById('new-mobile').onclick = openNew;
     document.getElementById('new-desktop').onclick = openNew;
     document.getElementById('new-backdrop').addEventListener('click', e => { if (e.target.id === 'new-backdrop') document.getElementById('new-backdrop').style.display = 'none'; });
+
+    // ─── Keyboard shortcuts ──────────────────────────────
+    document.addEventListener('keydown', e => {
+      // Esc closes any open drawer/modal
+      if (e.key === 'Escape') {
+        if (document.getElementById('drawer-backdrop').style.display !== 'none') closeDrawer();
+        else if (document.getElementById('new-backdrop').style.display !== 'none') document.getElementById('new-backdrop').style.display = 'none';
+        else if (document.getElementById('about-backdrop').style.display !== 'none') document.getElementById('about-backdrop').style.display = 'none';
+        else closeAllMenus();
+      }
+      // Cmd/Ctrl+N opens new
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') { e.preventDefault(); openNew(); }
+    });
 
     function render() { renderSummary(); renderCardList(); renderKanban(); }
 

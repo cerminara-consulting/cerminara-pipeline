@@ -1,276 +1,376 @@
 /* Cerminara Pipeline Tracker — global styles
- * Single source of truth for colors and spacing.
- * Mobile-first; desktop layout adapts via @media queries.
+ * Classic Macintosh (System 7 era) aesthetic.
+ * Palette: exactly four values, used as documented in Kilobyte Works SPEC.md:
+ *   --g  chassis greige   #d6d2c4   background behind windows
+ *   --p  screen platinum  #e8e6dc   window interiors, buttons, cards
+ *   --k  ink              #1a1a1a   borders, text, dividers, inversions
+ *   --m  mid-tone         #c9c5b6   ONLY inside dither patterns
+ *
+ * Rules of the house:
+ *   - Borders: 1.5–2px solid ink, never rounded on the outside edge of windows
+ *   - Typography: monospace stack only
+ *   - Shading: dither patterns only, never gray fills
+ *   - No emoji, no shadows, no modern gradients
+ *   - Buttons invert (ink ↔ platinum) on press, never animate color smoothly
  */
 
 :root {
-  /* Palette */
-  --bg:           #fafaf7;
-  --surface:      #ffffff;
-  --surface-2:    #f4f3ee;
-  --border:       #e3e1d8;
-  --border-strong:#1a1a1a;
-  --ink:          #1a1a1a;
-  --ink-muted:    #5a5a55;
-  --ink-faint:    #8a8a85;
-  --accent:       #183D62;   /* matches main site's navy */
-  --accent-soft:  #e8edf3;
-  --warn:         #b54a00;
-  --good:         #1f6b3a;
-  --bad:          #b0281f;
+  --g: #d6d2c4;  /* chassis greige */
+  --p: #e8e6dc;  /* screen platinum */
+  --k: #1a1a1a;  /* ink */
+  --m: #c9c5b6;  /* mid-tone (dither only) */
 
-  /* Status colors */
-  --s-lead:      #8a8a85;
-  --s-quoted:    #b54a00;
-  --s-active:    #183D62;
-  --s-invoiced:  #6b3e9c;
-  --s-paid:      #1f6b3a;
-  --s-closed:    #4a4a45;
-  --s-lost:      #8a3a35;
-
-  /* Spacing */
-  --r:    6px;
-  --r-lg: 10px;
-  --gap:  12px;
-  --gap-lg: 20px;
-
-  /* Type */
-  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', system-ui, sans-serif;
-  --mono: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --border: 1.5px solid var(--k);
+  --border-thick: 2px solid var(--k);
 }
+
+/* ─── Reset ──────────────────────────────────────────── */
 
 *, *::before, *::after { box-sizing: border-box; }
 
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--bg);
-  color: var(--ink);
-  font-family: var(--sans);
-  font-size: 15px;
-  line-height: 1.45;
+  background-color: var(--g);
+  background-image: repeating-conic-gradient(var(--p) 0% 25%, var(--k) 0% 50%);
+  background-size: 6px 6px;
+  color: var(--k);
+  font-family: "Courier New", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.35;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  min-height: 100vh;
 }
 
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
+a { color: var(--k); text-decoration: underline; text-underline-offset: 2px; }
+a:hover { background: var(--k); color: var(--p); text-decoration: none; }
+
+hr {
+  border: 0;
+  border-top: var(--border);
+  margin: 12px 0;
+}
+
+/* ─── Top-level menu bar ─────────────────────────────── */
+
+#menubar {
+  display: flex;
+  flex-wrap: wrap;
+  border: var(--border-thick);
+  background: var(--p);
+  margin-bottom: 8px;
+  user-select: none;
+  position: relative;
+  z-index: 100;
+}
+.mb-appname {
+  padding: 3px 12px;
+  border-right: var(--border-thick);
+  font-weight: 700;
+  background: var(--p);
+}
+.mb-item {
+  background: var(--p);
+  color: var(--k);
+  border: 0;
+  border-right: 1px solid var(--k);
+  font: inherit;
+  font-size: 13px;
+  padding: 3px 12px;
+  cursor: pointer;
+  position: relative;
+}
+.mb-item:hover, .mb-item.open { background: var(--k); color: var(--p); }
+.mb-item.right { margin-left: auto; border-right: 0; border-left: 1px solid var(--k); }
+
+.mb-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 180px;
+  border: var(--border-thick);
+  background: var(--p);
+  display: none;
+  z-index: 200;
+}
+.mb-dropdown.show { display: block; }
+.mb-di {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--p);
+  color: var(--k);
+  border: 0;
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 16px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mb-di:hover { background: var(--k); color: var(--p); }
+.mb-di:disabled {
+  cursor: not-allowed;
+  color: var(--k);
+  opacity: 0.45;
+  background-image: repeating-conic-gradient(var(--p) 0% 25%, transparent 0% 50%);
+  background-size: 3px 3px;
+}
+
+/* ─── Window chrome ──────────────────────────────────── */
+
+.window {
+  position: relative;
+  border: var(--border-thick);
+  background: var(--p);
+  margin: 8px 0;
+}
+.window.inverted-flash { animation: winflash 0.15s linear 1; }
+@keyframes winflash { 0%, 49% { filter: invert(1); } 50%, 100% { filter: none; } }
+
+.titlebar {
+  display: flex;
+  align-items: center;
+  background: repeating-linear-gradient(180deg, var(--p) 0 2px, var(--k) 2px 3px);
+  border-bottom: var(--border-thick);
+  padding: 0;
+  user-select: none;
+}
+.closebox {
+  width: 18px; height: 18px;
+  background: var(--p);
+  border: var(--border);
+  margin: 3px 5px 3px 3px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+}
+.closebox:hover { background: var(--k); color: var(--p); }
+.titlebar-text {
+  flex: 1;
+  text-align: center;
+  font-weight: 700;
+  background: var(--p);
+  padding: 3px 0;
+  margin: 3px 32px 3px 0;
+  border: 1px solid var(--k);
+  font-size: 13px;
+}
+.window-body {
+  padding: 12px;
+}
+
+/* ─── Buttons (rounded rect, ink border, invert on press) ─ */
 
 button {
   font: inherit;
+  color: var(--k);
+  background: var(--p);
+  border: var(--border);
+  border-radius: 8px;
+  padding: 5px 12px;
   cursor: pointer;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  padding: 6px 12px;
-  color: var(--ink);
-  transition: background 80ms, border-color 80ms;
 }
-button:hover { background: var(--surface-2); }
-button:active { background: var(--accent-soft); }
+button:hover { background: var(--p); }
+button:active { background: var(--k); color: var(--p); }
+button:disabled {
+  cursor: not-allowed;
+  background: var(--p);
+  color: var(--k);
+  opacity: 0.45;
+  background-image: repeating-conic-gradient(var(--p) 0% 25%, transparent 0% 50%);
+  background-size: 3px 3px;
+}
+
 button.primary {
-  background: var(--ink);
-  color: var(--bg);
-  border-color: var(--ink);
+  border: var(--border);
+  outline: var(--border);
+  outline-offset: 2px;
+  font-weight: 700;
 }
-button.primary:hover { background: #000; }
+button.primary:active { outline-color: var(--k); }
+
 button.danger {
-  color: var(--bad);
-  border-color: var(--bad);
-  background: transparent;
+  /* same chrome; the word "Delete" reads as danger in context */
+  font-weight: 700;
 }
-button.danger:hover { background: rgba(176, 40, 31, 0.06); }
-button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.danger:hover { background: var(--k); color: var(--p); }
+
+/* ─── Inputs (etched look, no shadow, no rounded outer) ─ */
 
 input, select, textarea {
   font: inherit;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  padding: 8px 10px;
-  color: var(--ink);
+  background: var(--p);
+  color: var(--k);
+  border: var(--border);
+  border-radius: 0;  /* inputs on classic Mac were square inside the field */
+  padding: 5px 6px;
   width: 100%;
 }
 input:focus, select:focus, textarea:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: -1px;
-  border-color: var(--accent);
+  outline: 2px solid var(--k);
+  outline-offset: -2px;
+}
+textarea {
+  font-family: inherit;
+  resize: vertical;
+  min-height: 80px;
 }
 
-/* --- Layout --- */
+label {
+  display: block;
+  font-size: 12px;
+  margin: 8px 0 3px;
+}
+
+/* ─── App shell ──────────────────────────────────────── */
 
 .app {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
-
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  gap: 12px;
-}
-.topbar .brand {
-  font-weight: 600;
-  font-size: 15px;
-  letter-spacing: -0.01em;
-}
-.topbar .brand .dot { color: var(--ink-faint); margin: 0 4px; }
-.topbar nav { display: flex; gap: 4px; align-items: center; }
-.topbar nav a {
-  padding: 6px 10px;
-  border-radius: var(--r);
-  color: var(--ink-muted);
-  font-size: 13px;
-}
-.topbar nav a:hover { background: var(--surface-2); text-decoration: none; }
-.topbar nav a.active { background: var(--accent-soft); color: var(--accent); }
-.topbar .user {
-  font-size: 13px;
-  color: var(--ink-muted);
-}
-.topbar .sign-out {
-  font-size: 13px;
-  padding: 4px 10px;
-}
-
-.main {
+.app-body {
   flex: 1;
-  padding: 16px;
+  padding: 8px;
   max-width: 100%;
 }
 
-/* --- Auth page --- */
+/* ─── Auth card (a window at center) ─────────────────── */
 
-.auth-page {
-  min-height: 100vh;
+.auth-shell {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: calc(100vh - 60px);
   padding: 20px;
 }
-.auth-card {
+.auth-window {
   width: 100%;
   max-width: 380px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: 28px 24px;
 }
-.auth-card h1 {
+.auth-window .window-body { padding: 18px; }
+.auth-window h2 {
   margin: 0 0 4px;
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-size: 16px;
+  font-weight: 700;
 }
-.auth-card .sub {
-  color: var(--ink-muted);
-  font-size: 13px;
-  margin-bottom: 22px;
+.auth-window .sub {
+  font-size: 12px;
+  margin-bottom: 14px;
 }
-.auth-card .tabs {
+.auth-window .auth-msg {
+  margin-top: 10px;
+  padding: 6px 8px;
+  border: var(--border);
+  font-size: 12px;
+}
+.auth-window .auth-msg.error {
+  background-image: repeating-conic-gradient(var(--k) 0% 25%, var(--p) 0% 50%);
+  background-size: 4px 4px;
+}
+.auth-window .auth-msg.error span {
+  background: var(--p);
+  padding: 1px 4px;
+}
+.auth-window .auth-msg.success {
+  background: var(--k);
+  color: var(--p);
+  border-color: var(--k);
+}
+.auth-window .submit {
+  margin-top: 14px;
+  width: 100%;
+  font-weight: 700;
+  padding: 7px 12px;
+}
+
+.tabs {
   display: flex;
-  gap: 0;
-  margin-bottom: 18px;
-  border-bottom: 1px solid var(--border);
+  margin: 0 0 12px;
+  border-bottom: var(--border);
 }
-.auth-card .tabs button {
+.tabs button {
   flex: 1;
   border: 0;
   border-bottom: 2px solid transparent;
   border-radius: 0;
   background: transparent;
-  padding: 10px;
-  color: var(--ink-muted);
-  font-size: 13px;
-  font-weight: 500;
-}
-.auth-card .tabs button.active {
-  color: var(--ink);
-  border-bottom-color: var(--ink);
-}
-.auth-card label {
-  display: block;
+  padding: 6px;
   font-size: 12px;
-  color: var(--ink-muted);
-  margin: 12px 0 4px;
-  font-weight: 500;
 }
-.auth-card .submit {
-  width: 100%;
-  margin-top: 18px;
-  padding: 10px;
+.tabs button.active {
+  border-bottom-color: var(--k);
+  font-weight: 700;
 }
-.auth-card .msg {
-  margin-top: 14px;
-  padding: 10px 12px;
-  border-radius: var(--r);
-  font-size: 13px;
-}
-.auth-card .msg.error { background: rgba(176, 40, 31, 0.08); color: var(--bad); }
-.auth-card .msg.success { background: rgba(31, 107, 58, 0.08); color: var(--good); }
 
-/* --- Dashboard summary bar --- */
+/* ─── Summary cards (small windows) ─────────────────── */
 
 .summary-bar {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 .summary-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  padding: 10px 12px;
+  border: var(--border);
+  background: var(--p);
+  padding: 8px 10px;
 }
 .summary-card .label {
-  font-size: 11px;
-  color: var(--ink-muted);
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-weight: 500;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  margin-bottom: 4px;
 }
 .summary-card .value {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   letter-spacing: -0.01em;
-  margin-top: 2px;
 }
-.summary-card.warn .value { color: var(--warn); }
-.summary-card.good .value { color: var(--good); }
+.summary-card.due .value { color: var(--k); }
+.summary-card.due .value::before {
+  content: "▸ ";
+  font-size: 14px;
+}
 
-/* --- Mobile card list --- */
+/* ─── Mobile card list (each card is a small window) ── */
 
-.list-view { display: flex; flex-direction: column; gap: 10px; }
 .list-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
-  gap: 10px;
+  margin: 0 0 8px;
+  gap: 8px;
 }
 .list-toolbar h2 {
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
 }
 .list-toolbar .actions { display: flex; gap: 6px; }
 
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: 14px 14px 12px;
-  cursor: pointer;
-  transition: border-color 80ms, transform 80ms;
+.card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
-.card:hover { border-color: var(--ink-faint); }
-.card:active { transform: scale(0.997); }
+
+.card {
+  border: var(--border);
+  background: var(--p);
+  padding: 10px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.card:hover { background: var(--g); }
+.card:active { background: var(--k); color: var(--p); }
+.card:active .pill { background: var(--p); color: var(--k); }
+
 .card .row1 {
   display: flex;
   justify-content: space-between;
@@ -279,107 +379,121 @@ input:focus, select:focus, textarea:focus {
   margin-bottom: 4px;
 }
 .card .client {
-  font-size: 12px;
-  color: var(--ink-muted);
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-weight: 500;
+  letter-spacing: 0.05em;
+  font-weight: 700;
 }
 .card .name {
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 5px;
 }
 .card .meta {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
   align-items: center;
   font-size: 12px;
-  color: var(--ink-muted);
 }
-.card .meta .amount { color: var(--ink); font-weight: 500; font-size: 13px; }
+.card .meta .amount { font-weight: 700; font-size: 13px; }
 .card .followup {
   margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--border);
+  padding-top: 6px;
+  border-top: 1px dashed var(--k);
   font-size: 12px;
-  color: var(--accent);
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
-.card .followup.due { color: var(--warn); font-weight: 500; }
-.card .followup.overdue { color: var(--bad); font-weight: 500; }
+.card .followup.overdue { font-weight: 700; }
 
+/* status pills — flat, monospace, no roundness */
 .pill {
   display: inline-block;
-  font-size: 11px;
-  font-weight: 500;
-  padding: 2px 8px;
-  border-radius: 99px;
-  background: var(--surface-2);
-  color: var(--ink-muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border: 1px solid var(--k);
+  background: var(--p);
+  color: var(--k);
   white-space: nowrap;
 }
-.pill.s-lead     { background: rgba(138, 138, 133, 0.12); color: var(--s-lead); }
-.pill.s-quoted   { background: rgba(181, 74, 0, 0.10);     color: var(--s-quoted); }
-.pill.s-active   { background: rgba(24, 61, 98, 0.10);     color: var(--s-active); }
-.pill.s-invoiced { background: rgba(107, 62, 156, 0.10);    color: var(--s-invoiced); }
-.pill.s-paid     { background: rgba(31, 107, 58, 0.10);    color: var(--s-paid); }
-.pill.s-closed   { background: rgba(74, 74, 69, 0.10);     color: var(--s-closed); }
-.pill.s-lost     { background: rgba(138, 58, 53, 0.10);     color: var(--s-lost); }
+.pill.s-lead     { background: var(--g); }
+.pill.s-quoted   { background: var(--p); }
+.pill.s-active   { background: var(--k); color: var(--p); }
+.pill.s-invoiced {
+  background-image: repeating-conic-gradient(var(--k) 0% 25%, var(--p) 0% 50%);
+  background-size: 4px 4px;
+}
+.pill.s-invoiced span { background: var(--p); padding: 0 2px; }
+.pill.s-paid     { background: var(--k); color: var(--p); }
+.pill.s-closed   { background: var(--p); opacity: 0.6; }
+.pill.s-lost     {
+  background: var(--p);
+  text-decoration: line-through;
+  opacity: 0.6;
+}
 
+/* empty state */
 .empty {
   text-align: center;
-  padding: 40px 20px;
-  color: var(--ink-muted);
-  font-size: 14px;
+  padding: 30px 16px;
+  border: 1px dashed var(--k);
+  background: var(--p);
+  font-size: 13px;
 }
-.empty .em-title { font-size: 16px; color: var(--ink); margin-bottom: 4px; font-weight: 500; }
+.empty .em-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
 
-/* --- Desktop kanban --- */
+/* ─── Desktop kanban ─────────────────────────────────── */
 
 .kanban {
   display: grid;
-  grid-template-columns: repeat(6, minmax(180px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(6, minmax(170px, 1fr));
+  gap: 8px;
   overflow-x: auto;
-  padding-bottom: 6px;
+  padding-bottom: 4px;
 }
 .kanban-col {
-  background: var(--surface-2);
-  border-radius: var(--r-lg);
-  padding: 10px;
-  min-height: 200px;
+  background: var(--g);
+  border: var(--border);
+  padding: 8px;
+  min-height: 220px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
-.kanban-col.drag-over { background: var(--accent-soft); }
+.kanban-col.drag-over {
+  background-image: repeating-conic-gradient(var(--p) 0% 25%, var(--k) 0% 50%);
+  background-size: 6px 6px;
+}
 .kanban-col .col-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--ink-muted);
+  letter-spacing: 0.05em;
   padding: 2px 4px;
+  border-bottom: var(--border);
+  margin-bottom: 4px;
 }
 .kanban-col .col-count {
-  background: var(--surface);
-  padding: 1px 7px;
-  border-radius: 99px;
+  background: var(--p);
+  border: 1px solid var(--k);
+  padding: 0 6px;
   font-size: 11px;
+  min-width: 20px;
+  text-align: center;
 }
 .kanban-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  padding: 10px;
+  background: var(--p);
+  border: var(--border);
+  padding: 8px;
   cursor: grab;
   user-select: none;
 }
@@ -387,30 +501,32 @@ input:focus, select:focus, textarea:focus {
 .kanban-card.dragging { opacity: 0.4; }
 .kanban-card .kc-client {
   font-size: 10px;
-  color: var(--ink-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  font-weight: 700;
   margin-bottom: 3px;
 }
 .kanban-card .kc-name {
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 5px;
 }
 .kanban-card .kc-bottom {
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 11px;
-  color: var(--ink-muted);
 }
 
-/* --- Detail drawer / modal --- */
+/* ─── Drawer (a window with title bar) ────────────────── */
 
 .drawer-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.4);
+  background: var(--g);
+  background-image: repeating-conic-gradient(var(--p) 0% 25%, var(--k) 0% 50%);
+  background-size: 8px 8px;
+  opacity: 0.7;
   z-index: 50;
   display: flex;
   justify-content: flex-end;
@@ -418,75 +534,71 @@ input:focus, select:focus, textarea:focus {
 .drawer {
   width: 100%;
   max-width: 460px;
-  background: var(--bg);
   height: 100vh;
   overflow-y: auto;
-  padding: 20px;
-  box-shadow: -4px 0 12px rgba(0,0,0,0.1);
+  /* The backdrop is the dither, the drawer is the window on top */
+  background: transparent;
+  display: flex;
+  align-items: stretch;
+  padding: 12px;
 }
-.drawer h2 {
-  margin: 0 0 4px;
-  font-size: 18px;
-  font-weight: 600;
+.drawer > .window {
+  margin: 0;
+  width: 100%;
+  height: fit-content;
+  max-height: calc(100vh - 24px);
+  display: flex;
+  flex-direction: column;
 }
-.drawer .drawer-sub {
-  color: var(--ink-muted);
-  font-size: 13px;
-  margin-bottom: 18px;
-}
-.drawer .field {
-  margin-bottom: 14px;
-}
-.drawer .field label {
-  display: block;
-  font-size: 11px;
-  color: var(--ink-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-weight: 500;
-  margin-bottom: 4px;
-}
-.drawer .field-row {
+.drawer > .window > .window-body { overflow-y: auto; flex: 1; }
+
+.field-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
-.drawer .drawer-actions {
+.drawer-actions {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
+  margin-top: 16px;
+  padding-top: 10px;
+  border-top: var(--border);
 }
 
-/* --- Toast --- */
+/* ─── Toast (Mac-style: black box, white text, all caps) ─ */
+
 .toast {
   position: fixed;
-  bottom: 20px;
+  bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--ink);
-  color: var(--bg);
-  padding: 10px 16px;
-  border-radius: var(--r);
-  font-size: 13px;
-  z-index: 100;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  background: var(--k);
+  color: var(--p);
+  padding: 6px 14px;
+  border: 2px solid var(--k);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  z-index: 200;
 }
 
-/* --- Responsive: desktop gets kanban, mobile stays card list --- */
+/* ─── Responsive: mobile vs desktop ─────────────────── */
+
 @media (max-width: 720px) {
   .summary-bar { grid-template-columns: repeat(2, 1fr); }
   .kanban { display: none; }
   .desktop-only { display: none; }
+  #menubar { font-size: 12px; }
+  .mb-item { padding: 3px 8px; }
+  .window { margin: 6px 0; }
+  .drawer { max-width: 100%; padding: 6px; }
 }
 
 @media (min-width: 721px) {
-  .list-view-only-on-mobile { display: none; }
+  .mobile-only { display: none; }
 }
 
 @media (min-width: 900px) {
-  .topbar { padding: 14px 24px; }
-  .main { padding: 24px; max-width: 1400px; margin: 0 auto; width: 100%; }
+  .app-body { padding: 12px 16px; max-width: 1400px; margin: 0 auto; width: 100%; }
 }
