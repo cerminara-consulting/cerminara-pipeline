@@ -1,0 +1,515 @@
+---
+// Main dashboard. Renders both:
+//   - Mobile: a scrollable card list (default)
+//   - Desktop (>= 720px): kanban board with drag-and-drop
+//
+// All data fetching + interactions happen client-side via Supabase.
+// Auth is gated in JS: signed-out users see the auth UI inline,
+// signed-in users see the dashboard. Single URL = easy to bookmark.
+import '../styles/global.css';
+---
+
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Pipeline — Tracker</title>
+</head>
+<body>
+  <!-- Auth view (shown when signed out) -->
+  <div id="auth-view" class="auth-page" style="display:none">
+    <div class="auth-card">
+      <h1>Tracker</h1>
+      <div class="sub">Cerminara Consulting pipeline</div>
+
+      <div class="tabs" id="auth-tabs">
+        <button type="button" data-tab="password" class="active">Password</button>
+        <button type="button" data-tab="magic">Magic link</button>
+      </div>
+
+      <form id="auth-form">
+        <div>
+          <label for="email">Email</label>
+          <input id="email" type="email" autocomplete="email" required />
+        </div>
+
+        <div id="password-field">
+          <label for="password">Password (12+ chars)</label>
+          <input id="password" type="password" autocomplete="current-password" minlength="12" required />
+        </div>
+
+        <button type="submit" class="primary submit" id="auth-submit">Sign in</button>
+        <div id="auth-msg"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Dashboard view (shown when signed in) -->
+  <div id="dash-view" class="app" style="display:none">
+    <header class="topbar">
+      <div class="brand">Tracker <span class="dot">·</span> <span style="color:var(--ink-muted);font-weight:400">Cerminara Consulting</span></div>
+      <nav>
+        <a href="/" class="active">Pipeline</a>
+      </nav>
+      <div class="user">
+        <span id="user-email"></span>
+        <button class="sign-out" id="sign-out">Sign out</button>
+      </div>
+    </header>
+
+    <div class="main">
+      <div class="summary-bar" id="summary">
+        <div class="summary-card">
+          <div class="label">Active</div>
+          <div class="value" id="m-active">—</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Quoted</div>
+          <div class="value" id="m-quoted">—</div>
+        </div>
+        <div class="summary-card warn">
+          <div class="label">Outstanding</div>
+          <div class="value" id="m-outstanding">—</div>
+        </div>
+        <div class="summary-card good">
+          <div class="label">Paid (all time)</div>
+          <div class="value" id="m-paid">—</div>
+        </div>
+        <div class="summary-card warn">
+          <div class="label">Follow-ups due</div>
+          <div class="value" id="m-followups">—</div>
+        </div>
+      </div>
+
+      <div class="list-view-only-on-mobile">
+        <div class="list-toolbar">
+          <h2>All engagements</h2>
+          <div class="actions">
+            <button id="new-mobile">+ New</button>
+          </div>
+        </div>
+        <div class="list-view" id="card-list"></div>
+      </div>
+
+      <div class="desktop-only">
+        <div class="list-toolbar" style="margin-bottom:14px">
+          <h2>Pipeline board</h2>
+          <div class="actions">
+            <button id="new-desktop">+ New engagement</button>
+          </div>
+        </div>
+        <div class="kanban" id="kanban"></div>
+      </div>
+    </div>
+
+    <div class="drawer-backdrop" id="drawer-backdrop" style="display:none">
+      <div class="drawer" id="drawer"></div>
+    </div>
+
+    <div class="drawer-backdrop" id="new-backdrop" style="display:none">
+      <div class="drawer" id="new-drawer"></div>
+    </div>
+
+    <div class="toast" id="toast" style="display:none"></div>
+  </div>
+
+  <script>
+    import { createClient } from '@supabase/supabase-js';
+    import {
+      PIPELINE_STATUSES, STATUS_LABELS, TYPE_LABELS,
+      fmtMoney, fmtRelative, fmtFollowup,
+    } from '../lib/supabase';
+
+    const SUPABASE_URL = import.meta.env.PUBLIC_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true, storage: localStorage },
+    });
+
+    let engagements = [];
+    let clients = [];
+    let authTab = 'password';
+
+    const authView = document.getElementById('auth-view');
+    const dashView = document.getElementById('dash-view');
+
+    async function routeByAuth() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        authView.style.display = 'none';
+        dashView.style.display = '';
+        document.getElementById('user-email').textContent = session.user.email;
+        await loadAll();
+      } else {
+        authView.style.display = '';
+        dashView.style.display = 'none';
+      }
+    }
+    routeByAuth();
+
+    supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) routeByAuth();
+      else { authView.style.display = ''; dashView.style.display = 'none'; }
+    });
+
+    // ─── Auth UI ─────────────────────────────────────────
+    const authTabs = document.getElementById('auth-tabs');
+    const passwordField = document.getElementById('password-field');
+    const authSubmit = document.getElementById('auth-submit');
+    const authMsg = document.getElementById('auth-msg');
+
+    function setAuthMsg(text, kind) {
+      authMsg.className = 'msg ' + (kind || '');
+      authMsg.textContent = text;
+    }
+
+    authTabs.addEventListener('click', e => {
+      const btn = e.target.closest('button[data-tab]');
+      if (!btn) return;
+      [...authTabs.querySelectorAll('button')].forEach(b => b.classList.toggle('active', b === btn));
+      authTab = btn.dataset.tab;
+      passwordField.style.display = authTab === 'password' ? '' : 'none';
+      authSubmit.textContent = authTab === 'magic' ? 'Email me a link' : 'Sign in';
+    });
+
+    document.getElementById('auth-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      authSubmit.disabled = true;
+      authSubmit.textContent = 'Working...';
+      try {
+        if (authTab === 'magic') {
+          const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin } });
+          if (error) throw error;
+          setAuthMsg('Check your email — magic link sent.', 'success');
+        } else {
+          const { error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+        }
+      } catch (err) {
+        setAuthMsg(err.message || String(err), 'error');
+      } finally {
+        authSubmit.disabled = false;
+        authSubmit.textContent = authTab === 'magic' ? 'Email me a link' : 'Sign in';
+      }
+    });
+
+    document.getElementById('sign-out').addEventListener('click', async () => {
+      await supabase.auth.signOut();
+    });
+
+    // ─── Data ────────────────────────────────────────────
+    async function loadAll() {
+      const [{ data: e }, { data: c }] = await Promise.all([
+        supabase.from('engagement_summary').select('*').order('updated_at', { ascending: false }),
+        supabase.from('clients').select('*').order('name'),
+      ]);
+      engagements = e || [];
+      clients = c || [];
+      render();
+    }
+
+    function renderSummary() {
+      const active   = engagements.filter(e => e.status === 'active').length;
+      const quoted   = engagements.filter(e => e.status === 'quoted').length;
+      const paid     = engagements.reduce((s, e) => s + (e.paid_amount || 0), 0);
+      const outstand = engagements.reduce((s, e) => s + (e.invoiced_amount || 0) - (e.paid_amount || 0), 0);
+      const now = Date.now();
+      const dueSoon = engagements.filter(e => e.next_followup_at && new Date(e.next_followup_at).getTime() <= now).length;
+
+      document.getElementById('m-active').textContent     = active;
+      document.getElementById('m-quoted').textContent     = quoted;
+      document.getElementById('m-outstanding').textContent= fmtMoney(outstand);
+      document.getElementById('m-paid').textContent       = fmtMoney(paid);
+      document.getElementById('m-followups').textContent  = dueSoon;
+    }
+
+    function renderCardList() {
+      const list = document.getElementById('card-list');
+      const visible = engagements.filter(e => e.status !== 'lost');
+      if (visible.length === 0) {
+        list.innerHTML = `<div class="empty"><div class="em-title">No engagements yet</div><div>Tap "+ New" to add your first client + engagement.</div></div>`;
+        return;
+      }
+      list.innerHTML = visible.map(cardHtml).join('');
+      [...list.querySelectorAll('.card')].forEach(el => el.addEventListener('click', () => openDrawer(el.dataset.id)));
+    }
+
+    function cardHtml(e) {
+      const now = Date.now();
+      const fu = e.next_followup_at ? new Date(e.next_followup_at).getTime() : null;
+      let fuClass = 'followup';
+      let fuText = '';
+      if (fu !== null) {
+        const diffH = (fu - now) / 3600000;
+        fuText = `Follow-up: ${fmtFollowup(e.next_followup_at)}`;
+        if (fu < now) fuClass += ' overdue';
+        else if (diffH < 48) fuClass += ' due';
+      }
+      const amount = (e.status === 'paid' || e.status === 'invoiced' || e.status === 'closed')
+        ? fmtMoney(e.paid_amount || e.quoted_amount)
+        : (e.quoted_amount ? fmtMoney(e.quoted_amount) : TYPE_LABELS[e.type]);
+      return `
+        <div class="card" data-id="${e.id}">
+          <div class="row1">
+            <div class="client">${escapeHtml(e.client_name)}${e.client_company ? ' · ' + escapeHtml(e.client_company) : ''}</div>
+            <span class="pill s-${e.status}">${STATUS_LABELS[e.status]}</span>
+          </div>
+          <div class="name">${escapeHtml(e.name)}</div>
+          <div class="meta">
+            <span class="amount">${amount}</span>
+            <span>·</span>
+            <span>${TYPE_LABELS[e.type]}</span>
+            ${e.last_activity_at ? `<span>·</span><span>${fmtRelative(e.last_activity_at)}</span>` : ''}
+          </div>
+          ${fuText ? `<div class="${fuClass}">${fuText}</div>` : ''}
+        </div>`;
+    }
+
+    function renderKanban() {
+      const board = document.getElementById('kanban');
+      board.innerHTML = PIPELINE_STATUSES.map(st => {
+        const inCol = engagements.filter(e => e.status === st);
+        return `
+          <div class="kanban-col" data-status="${st}">
+            <div class="col-head"><span>${STATUS_LABELS[st]}</span><span class="col-count">${inCol.length}</span></div>
+            ${inCol.map(e => `
+              <div class="kanban-card" draggable="true" data-id="${e.id}">
+                <div class="kc-client">${escapeHtml(e.client_name)}</div>
+                <div class="kc-name">${escapeHtml(e.name)}</div>
+                <div class="kc-bottom">
+                  <span>${TYPE_LABELS[e.type]}</span>
+                  <span>${e.quoted_amount ? fmtMoney(e.quoted_amount) : ''}</span>
+                </div>
+              </div>`).join('')}
+          </div>`;
+      }).join('');
+
+      [...board.querySelectorAll('.kanban-col')].forEach(col => {
+        col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drag-over'); });
+        col.addEventListener('dragleave', () => col.classList.remove('drag-over'));
+        col.addEventListener('drop', async e => {
+          e.preventDefault();
+          col.classList.remove('drag-over');
+          const id = e.dataTransfer.getData('text/plain');
+          if (!id) return;
+          await changeStatus(id, col.dataset.status);
+        });
+      });
+      [...board.querySelectorAll('.kanban-card')].forEach(card => {
+        card.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', card.dataset.id); card.classList.add('dragging'); });
+        card.addEventListener('dragend', () => card.classList.remove('dragging'));
+        card.addEventListener('click', () => openDrawer(card.dataset.id));
+      });
+    }
+
+    async function changeStatus(id, newStatus) {
+      const e = engagements.find(x => x.id === id);
+      if (!e || e.status === newStatus) return;
+      const { error } = await supabase.from('engagements').update({ status: newStatus }).eq('id', id);
+      if (error) { toast('Could not move: ' + error.message); return; }
+      e.status = newStatus;
+      render();
+      toast('Moved to ' + STATUS_LABELS[newStatus]);
+    }
+
+    function openDrawer(id) {
+      const e = engagements.find(x => x.id === id);
+      if (!e) return;
+      const drawer = document.getElementById('drawer');
+      drawer.innerHTML = `
+        <h2>${escapeHtml(e.name)}</h2>
+        <div class="drawer-sub">${escapeHtml(e.client_name)}${e.client_company ? ' · ' + escapeHtml(e.client_company) : ''}</div>
+
+        <div class="field-row">
+          <div class="field"><label>Status</label>
+            <select id="d-status">
+              ${['lead','quoted','active','invoiced','paid','closed','lost'].map(s =>
+                `<option value="${s}" ${e.status===s?'selected':''}>${STATUS_LABELS[s]}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field"><label>Type</label>
+            <select id="d-type">
+              ${['fixed','retainer','hourly'].map(t =>
+                `<option value="${t}" ${e.type===t?'selected':''}>${TYPE_LABELS[t]}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field"><label>Quoted amount</label>
+            <input id="d-amount" type="number" step="0.01" value="${e.quoted_amount ?? ''}" />
+          </div>
+          <div class="field"><label>Hourly rate</label>
+            <input id="d-rate" type="number" step="0.01" value="${e.hourly_rate ?? ''}" />
+          </div>
+        </div>
+
+        <div class="field"><label>Next follow-up</label>
+          <input id="d-followup" type="datetime-local" value="${toLocalDT(e.next_followup_at)}" />
+        </div>
+
+        <div class="field"><label>Notes</label>
+          <textarea id="d-notes" rows="4">${escapeHtml(e.notes || '')}</textarea>
+        </div>
+
+        <div class="drawer-actions">
+          <button class="danger" id="d-delete">Delete</button>
+          <div style="display:flex;gap:8px">
+            <button id="d-cancel">Close</button>
+            <button class="primary" id="d-save">Save</button>
+          </div>
+        </div>`;
+
+      document.getElementById('drawer-backdrop').style.display = '';
+      document.getElementById('d-cancel').onclick = closeDrawer;
+      document.getElementById('d-save').onclick = async () => {
+        const patch = {
+          status: document.getElementById('d-status').value,
+          type: document.getElementById('d-type').value,
+          quoted_amount: parseFloatOrNull(document.getElementById('d-amount').value),
+          hourly_rate: parseFloatOrNull(document.getElementById('d-rate').value),
+          next_followup_at: localDTToISO(document.getElementById('d-followup').value),
+          notes: document.getElementById('d-notes').value || null,
+        };
+        const { error } = await supabase.from('engagements').update(patch).eq('id', id);
+        if (error) { toast('Save failed: ' + error.message); return; }
+        toast('Saved');
+        await loadAll();
+        closeDrawer();
+      };
+      document.getElementById('d-delete').onclick = async () => {
+        if (!confirm('Delete this engagement? Activity log will be retained.')) return;
+        const { error } = await supabase.from('engagements').delete().eq('id', id);
+        if (error) { toast('Delete failed: ' + error.message); return; }
+        toast('Deleted');
+        await loadAll();
+        closeDrawer();
+      };
+    }
+    function closeDrawer() { document.getElementById('drawer-backdrop').style.display = 'none'; }
+    document.getElementById('drawer-backdrop').addEventListener('click', e => { if (e.target.id === 'drawer-backdrop') closeDrawer(); });
+
+    function openNew() {
+      const drawer = document.getElementById('new-drawer');
+      drawer.innerHTML = `
+        <h2>New engagement</h2>
+        <div class="drawer-sub">Add a client and an engagement in one shot.</div>
+
+        <div class="field"><label>Client</label>
+          <select id="n-client">
+            <option value="">— existing or new below —</option>
+            ${clients.map(c => `<option value="${c.id}">${escapeHtml(c.name)}${c.company ? ' · '+escapeHtml(c.company) : ''}</option>`).join('')}
+          </select>
+        </div>
+
+        <div class="field-row">
+          <div class="field"><label>New client name</label><input id="n-client-name" placeholder="Or pick existing above" /></div>
+          <div class="field"><label>Company</label><input id="n-client-co" /></div>
+        </div>
+
+        <div class="field"><label>Client email</label><input id="n-client-email" type="email" /></div>
+
+        <hr style="border:none;border-top:1px solid var(--border);margin:18px 0" />
+
+        <div class="field"><label>Engagement name</label><input id="n-name" placeholder="e.g. iOS app v2 rebuild" /></div>
+
+        <div class="field-row">
+          <div class="field"><label>Type</label>
+            <select id="n-type">
+              <option value="fixed">Fixed bid</option>
+              <option value="retainer">Retainer</option>
+              <option value="hourly">Hourly</option>
+            </select>
+          </div>
+          <div class="field"><label>Status</label>
+            <select id="n-status">
+              <option value="lead">Lead</option>
+              <option value="quoted">Quoted</option>
+              <option value="active">Active</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field"><label>Quoted amount</label><input id="n-amount" type="number" step="0.01" placeholder="optional" /></div>
+
+        <div class="drawer-actions">
+          <button id="n-cancel">Cancel</button>
+          <button class="primary" id="n-save">Create</button>
+        </div>`;
+
+      document.getElementById('new-backdrop').style.display = '';
+      document.getElementById('n-cancel').onclick = () => { document.getElementById('new-backdrop').style.display = 'none'; };
+      document.getElementById('n-save').onclick = async () => {
+        const name = document.getElementById('n-name').value.trim();
+        if (!name) { toast('Engagement name required'); return; }
+        const { data: { user } } = await supabase.auth.getUser();
+
+        let clientId = document.getElementById('n-client').value;
+        if (!clientId) {
+          const clientName = document.getElementById('n-client-name').value.trim();
+          if (!clientName) { toast('Pick or name a client'); return; }
+          const { data: c, error: ce } = await supabase.from('clients').insert({
+            owner_id: user.id,
+            name: clientName,
+            company: document.getElementById('n-client-co').value.trim() || null,
+            email: document.getElementById('n-client-email').value.trim() || null,
+          }).select().single();
+          if (ce) { toast('Client create failed: ' + ce.message); return; }
+          clientId = c.id;
+        }
+
+        const { error: ee } = await supabase.from('engagements').insert({
+          owner_id: user.id,
+          client_id: clientId,
+          name,
+          type: document.getElementById('n-type').value,
+          status: document.getElementById('n-status').value,
+          quoted_amount: parseFloatOrNull(document.getElementById('n-amount').value),
+        });
+        if (ee) { toast('Engagement create failed: ' + ee.message); return; }
+        document.getElementById('new-backdrop').style.display = 'none';
+        toast('Created');
+        await loadAll();
+      };
+    }
+    document.getElementById('new-mobile').onclick = openNew;
+    document.getElementById('new-desktop').onclick = openNew;
+    document.getElementById('new-backdrop').addEventListener('click', e => { if (e.target.id === 'new-backdrop') document.getElementById('new-backdrop').style.display = 'none'; });
+
+    function render() { renderSummary(); renderCardList(); renderKanban(); }
+
+    function escapeHtml(s) {
+      return String(s ?? '')
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+    function parseFloatOrNull(v) {
+      if (v === '' || v === null || v === undefined) return null;
+      const n = parseFloat(v);
+      return isNaN(n) ? null : n;
+    }
+    function toLocalDT(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      const pad = n => String(n).padStart(2,'0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+    function localDTToISO(v) {
+      if (!v) return null;
+      return new Date(v).toISOString();
+    }
+    let toastTimer;
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.display = '';
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.style.display = 'none', 2200);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,492 @@
+/* Cerminara Pipeline Tracker — global styles
+ * Single source of truth for colors and spacing.
+ * Mobile-first; desktop layout adapts via @media queries.
+ */
+
+:root {
+  /* Palette */
+  --bg:           #fafaf7;
+  --surface:      #ffffff;
+  --surface-2:    #f4f3ee;
+  --border:       #e3e1d8;
+  --border-strong:#1a1a1a;
+  --ink:          #1a1a1a;
+  --ink-muted:    #5a5a55;
+  --ink-faint:    #8a8a85;
+  --accent:       #183D62;   /* matches main site's navy */
+  --accent-soft:  #e8edf3;
+  --warn:         #b54a00;
+  --good:         #1f6b3a;
+  --bad:          #b0281f;
+
+  /* Status colors */
+  --s-lead:      #8a8a85;
+  --s-quoted:    #b54a00;
+  --s-active:    #183D62;
+  --s-invoiced:  #6b3e9c;
+  --s-paid:      #1f6b3a;
+  --s-closed:    #4a4a45;
+  --s-lost:      #8a3a35;
+
+  /* Spacing */
+  --r:    6px;
+  --r-lg: 10px;
+  --gap:  12px;
+  --gap-lg: 20px;
+
+  /* Type */
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', system-ui, sans-serif;
+  --mono: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+button {
+  font: inherit;
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 6px 12px;
+  color: var(--ink);
+  transition: background 80ms, border-color 80ms;
+}
+button:hover { background: var(--surface-2); }
+button:active { background: var(--accent-soft); }
+button.primary {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
+}
+button.primary:hover { background: #000; }
+button.danger {
+  color: var(--bad);
+  border-color: var(--bad);
+  background: transparent;
+}
+button.danger:hover { background: rgba(176, 40, 31, 0.06); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+input, select, textarea {
+  font: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 8px 10px;
+  color: var(--ink);
+  width: 100%;
+}
+input:focus, select:focus, textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  border-color: var(--accent);
+}
+
+/* --- Layout --- */
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+.topbar .brand {
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+.topbar .brand .dot { color: var(--ink-faint); margin: 0 4px; }
+.topbar nav { display: flex; gap: 4px; align-items: center; }
+.topbar nav a {
+  padding: 6px 10px;
+  border-radius: var(--r);
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+.topbar nav a:hover { background: var(--surface-2); text-decoration: none; }
+.topbar nav a.active { background: var(--accent-soft); color: var(--accent); }
+.topbar .user {
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+.topbar .sign-out {
+  font-size: 13px;
+  padding: 4px 10px;
+}
+
+.main {
+  flex: 1;
+  padding: 16px;
+  max-width: 100%;
+}
+
+/* --- Auth page --- */
+
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 28px 24px;
+}
+.auth-card h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.auth-card .sub {
+  color: var(--ink-muted);
+  font-size: 13px;
+  margin-bottom: 22px;
+}
+.auth-card .tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+.auth-card .tabs button {
+  flex: 1;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  padding: 10px;
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+.auth-card .tabs button.active {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+.auth-card label {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin: 12px 0 4px;
+  font-weight: 500;
+}
+.auth-card .submit {
+  width: 100%;
+  margin-top: 18px;
+  padding: 10px;
+}
+.auth-card .msg {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: var(--r);
+  font-size: 13px;
+}
+.auth-card .msg.error { background: rgba(176, 40, 31, 0.08); color: var(--bad); }
+.auth-card .msg.success { background: rgba(31, 107, 58, 0.08); color: var(--good); }
+
+/* --- Dashboard summary bar --- */
+
+.summary-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.summary-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 10px 12px;
+}
+.summary-card .label {
+  font-size: 11px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+.summary-card .value {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-top: 2px;
+}
+.summary-card.warn .value { color: var(--warn); }
+.summary-card.good .value { color: var(--good); }
+
+/* --- Mobile card list --- */
+
+.list-view { display: flex; flex-direction: column; gap: 10px; }
+.list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 10px;
+}
+.list-toolbar h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.list-toolbar .actions { display: flex; gap: 6px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 14px 14px 12px;
+  cursor: pointer;
+  transition: border-color 80ms, transform 80ms;
+}
+.card:hover { border-color: var(--ink-faint); }
+.card:active { transform: scale(0.997); }
+.card .row1 {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.card .client {
+  font-size: 12px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+.card .name {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 6px;
+}
+.card .meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+.card .meta .amount { color: var(--ink); font-weight: 500; font-size: 13px; }
+.card .followup {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  font-size: 12px;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.card .followup.due { color: var(--warn); font-weight: 500; }
+.card .followup.overdue { color: var(--bad); font-weight: 500; }
+
+.pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: var(--surface-2);
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+.pill.s-lead     { background: rgba(138, 138, 133, 0.12); color: var(--s-lead); }
+.pill.s-quoted   { background: rgba(181, 74, 0, 0.10);     color: var(--s-quoted); }
+.pill.s-active   { background: rgba(24, 61, 98, 0.10);     color: var(--s-active); }
+.pill.s-invoiced { background: rgba(107, 62, 156, 0.10);    color: var(--s-invoiced); }
+.pill.s-paid     { background: rgba(31, 107, 58, 0.10);    color: var(--s-paid); }
+.pill.s-closed   { background: rgba(74, 74, 69, 0.10);     color: var(--s-closed); }
+.pill.s-lost     { background: rgba(138, 58, 53, 0.10);     color: var(--s-lost); }
+
+.empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+.empty .em-title { font-size: 16px; color: var(--ink); margin-bottom: 4px; font-weight: 500; }
+
+/* --- Desktop kanban --- */
+
+.kanban {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(180px, 1fr));
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+.kanban-col {
+  background: var(--surface-2);
+  border-radius: var(--r-lg);
+  padding: 10px;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.kanban-col.drag-over { background: var(--accent-soft); }
+.kanban-col .col-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-muted);
+  padding: 2px 4px;
+}
+.kanban-col .col-count {
+  background: var(--surface);
+  padding: 1px 7px;
+  border-radius: 99px;
+  font-size: 11px;
+}
+.kanban-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 10px;
+  cursor: grab;
+  user-select: none;
+}
+.kanban-card:active { cursor: grabbing; }
+.kanban-card.dragging { opacity: 0.4; }
+.kanban-card .kc-client {
+  font-size: 10px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 3px;
+}
+.kanban-card .kc-name {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.kanban-card .kc-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+/* --- Detail drawer / modal --- */
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 50;
+  display: flex;
+  justify-content: flex-end;
+}
+.drawer {
+  width: 100%;
+  max-width: 460px;
+  background: var(--bg);
+  height: 100vh;
+  overflow-y: auto;
+  padding: 20px;
+  box-shadow: -4px 0 12px rgba(0,0,0,0.1);
+}
+.drawer h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 600;
+}
+.drawer .drawer-sub {
+  color: var(--ink-muted);
+  font-size: 13px;
+  margin-bottom: 18px;
+}
+.drawer .field {
+  margin-bottom: 14px;
+}
+.drawer .field label {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+.drawer .field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.drawer .drawer-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* --- Toast --- */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: var(--bg);
+  padding: 10px 16px;
+  border-radius: var(--r);
+  font-size: 13px;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* --- Responsive: desktop gets kanban, mobile stays card list --- */
+@media (max-width: 720px) {
+  .summary-bar { grid-template-columns: repeat(2, 1fr); }
+  .kanban { display: none; }
+  .desktop-only { display: none; }
+}
+
+@media (min-width: 721px) {
+  .list-view-only-on-mobile { display: none; }
+}
+
+@media (min-width: 900px) {
+  .topbar { padding: 14px 24px; }
+  .main { padding: 24px; max-width: 1400px; margin: 0 auto; width: 100%; }
+}
