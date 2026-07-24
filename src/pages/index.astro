@@ -188,8 +188,9 @@ import '../styles/global.css';
     </div>
 
     <!-- About modal (Mac-style alert) -->
-    <div class="drawer-backdrop" id="about-backdrop" style="display:none;align-items:center;justify-content:center">
-      <div class="window" style="width:100%;max-width:380px;margin:0">
+    <div class="drawer-backdrop" id="about-backdrop" data-modal="center" style="display:none">
+      <div style="width:100%;max-width:380px;padding:0">
+        <div class="window" style="margin:0">
         <div class="titlebar">
           <div class="titlebar-text">About Tracker</div>
         </div>
@@ -215,7 +216,9 @@ import '../styles/global.css';
             <button id="about-close">OK</button>
           </div>
         </div>
+        </div>
       </div>
+    </div>
     </div>
 
     <div class="toast" id="toast" style="display:none"></div>

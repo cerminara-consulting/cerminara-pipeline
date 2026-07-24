@@ -526,7 +526,6 @@ label {
   background: var(--g);
   background-image: repeating-conic-gradient(var(--p) 0% 25%, var(--k) 0% 50%);
   background-size: 8px 8px;
-  opacity: 0.7;
   z-index: 50;
   display: flex;
   justify-content: flex-end;
@@ -536,21 +535,44 @@ label {
   max-width: 460px;
   height: 100vh;
   overflow-y: auto;
-  /* The backdrop is the dither, the drawer is the window on top */
-  background: transparent;
+  background: var(--g);
+  background-image: repeating-conic-gradient(var(--p) 0% 25%, var(--k) 0% 50%);
+  background-size: 8px 8px;
   display: flex;
-  align-items: stretch;
-  padding: 12px;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 24px;
 }
 .drawer > .window {
   margin: 0;
   width: 100%;
-  height: fit-content;
-  max-height: calc(100vh - 24px);
+  background: var(--p);
   display: flex;
   flex-direction: column;
 }
-.drawer > .window > .window-body { overflow-y: auto; flex: 1; }
+.drawer > .window > .titlebar {
+  flex-shrink: 0;
+}
+.drawer > .window > .window-body {
+  overflow-y: auto;
+  flex: 1;
+  max-height: calc(100vh - 80px);
+}
+
+/* Centered About modal */
+.drawer-backdrop[data-modal="center"] {
+  justify-content: center;
+  align-items: center;
+}
+.drawer-backdrop[data-modal="center"] > .drawer {
+  background: transparent;
+  padding: 0;
+  width: auto;
+  height: auto;
+  max-width: none;
+  align-items: stretch;
+  justify-content: stretch;
+}
 
 .field-row {
   display: grid;
